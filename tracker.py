@@ -6,28 +6,33 @@ import os
 
 app = FastAPI()
 
-# Set log directory (match this to your Render disk mount path)
-LOG_DIR = "/var/logs"  # Adjust this based on your Render disk path
+# Use the correct Render-mounted log directory
+LOG_DIR = "/opt/render/logs"
 LOG_FILE = os.path.join(LOG_DIR, "impressions.log")
 
-# Ensure the directory exists
+# Ensure the log directory exists (Render should already have this)
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Configure logging
-logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s - IP: %(message)s")
+logger = logging.getLogger("impressions_tracker")
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler(LOG_FILE)
+handler.setFormatter(logging.Formatter("%(asctime)s - IP: %(message)s"))
+logger.addHandler(handler)
 
-IMAGE_PATH = "static/Applynow.png"  # Adjusted path
+# Define the image path
+IMAGE_PATH = "static/Applynow.png"
 
 @app.get("/track-apply.png")
 async def track_apply(request: Request):
     """Serve the Apply Now button image and log impressions."""
-    ip = request.client.host  # Get visitor's IP
-    timestamp = datetime.datetime.now().isoformat()  # Timestamp
+    ip = request.client.host  # Get visitor's IP address
+    timestamp = datetime.datetime.now().isoformat()  # Current timestamp
 
     # Log impression details
-    logging.info(f"{timestamp}, {ip}")
+    logger.info(f"{timestamp}, {ip}")
 
-    # Ensure file exists before serving
+    # Check if the image exists before serving
     if not os.path.exists(IMAGE_PATH):
         raise HTTPException(status_code=404, detail="Image not found")
 
