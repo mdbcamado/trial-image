@@ -31,7 +31,7 @@ creds = Credentials.from_service_account_info(eval(SERVICE_ACCOUNT_JSON), scopes
 gc = gspread.authorize(creds)
 
 # Set your Google Sheet name and worksheet
-SHEET_NAME = "Craiglist_Posting"
+SHEET_NAME = "Craiglist Posting"
 WORKSHEET_NAME = "Log"
 
 # Open the Google Sheet
