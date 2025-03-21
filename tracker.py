@@ -3,37 +3,65 @@ from fastapi.responses import FileResponse
 import logging
 import datetime
 import os
+import requests
+import gspread
+from google.oauth2.service_account import Credentials
 
 app = FastAPI()
 
-# Use the correct Render-mounted log directory
+# Set up logging directory
 LOG_DIR = "/opt/render/logs"
 LOG_FILE = os.path.join(LOG_DIR, "impressions.log")
-
-# Ensure the log directory exists (Render should already have this)
 os.makedirs(LOG_DIR, exist_ok=True)
 
 # Configure logging
-logger = logging.getLogger("impressions_tracker")
-logger.setLevel(logging.INFO)
-handler = logging.FileHandler(LOG_FILE)
-handler.setFormatter(logging.Formatter("%(asctime)s - IP: %(message)s"))
-logger.addHandler(handler)
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s - IP: %(message)s")
 
-# Define the image path
-IMAGE_PATH = "static/Applynow.png"
+# Load Google Sheets credentials from environment variables
+SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_CREDENTIALS")
+if not SERVICE_ACCOUNT_JSON:
+    raise ValueError("GOOGLE_CREDENTIALS is not set in the environment.")
 
-@app.get("/track-apply.png")
-async def track_apply(request: Request):
-    """Serve the Apply Now button image and log impressions."""
-    ip = request.client.host  # Get visitor's IP address
-    timestamp = datetime.datetime.now().isoformat()  # Current timestamp
+creds = Credentials.from_service_account_info(eval(SERVICE_ACCOUNT_JSON))
+gc = gspread.authorize(creds)
 
-    # Log impression details
-    logger.info(f"{timestamp}, {ip}")
+# Set your Google Sheet name and worksheet
+SHEET_NAME = "Craiglist_Posting"
+WORKSHEET_NAME = "Log"
 
-    # Check if the image exists before serving
-    if not os.path.exists(IMAGE_PATH):
+# Open the Google Sheet
+sheet = gc.open(SHEET_NAME)
+worksheet = sheet.worksheet(WORKSHEET_NAME)
+
+# Function to get geolocation from IP
+def get_geolocation(ip):
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip}")
+        data = response.json()
+        if data["status"] == "fail":
+            return "Unknown"
+        return f"{data['city']}, {data['regionName']}, {data['country']}"
+    except:
+        return "Unknown"
+
+# Serve the tracked images
+@app.get("/track/{image_name}")
+async def track_image(request: Request, image_name: str):
+    """Serve tracked images and log impressions to Google Sheets."""
+    ip = request.client.host
+    timestamp = datetime.datetime.utcnow().isoformat()
+    geolocation = get_geolocation(ip)
+
+    # Log impression details locally
+    log_entry = f"{timestamp}, {ip}, {geolocation}, {image_name}"
+    logging.info(log_entry)
+
+    # Append log entry to Google Sheet
+    worksheet.append_row([timestamp, ip, geolocation, image_name])
+
+    # Check if the image exists
+    image_path = f"static/{image_name}"
+    if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
-    return FileResponse(IMAGE_PATH)
+    return FileResponse(image_path)
