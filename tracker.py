@@ -6,8 +6,15 @@ import os
 
 app = FastAPI()
 
-# Enable logging to track impressions
-logging.basicConfig(filename="impressions.log", level=logging.INFO, format="%(asctime)s - %(message)s")
+# Set log directory (match this to your Render disk mount path)
+LOG_DIR = "/var/logs"  # Adjust this based on your Render disk path
+LOG_FILE = os.path.join(LOG_DIR, "impressions.log")
+
+# Ensure the directory exists
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Configure logging
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s - IP: %(message)s")
 
 IMAGE_PATH = "static/Applynow.png"  # Adjusted path
 
@@ -18,10 +25,10 @@ async def track_apply(request: Request):
     timestamp = datetime.datetime.now().isoformat()  # Timestamp
 
     # Log impression details
-    logging.info(f"Impression: {timestamp}, IP: {ip}")
+    logging.info(f"{timestamp}, {ip}")
 
     # Ensure file exists before serving
     if not os.path.exists(IMAGE_PATH):
         raise HTTPException(status_code=404, detail="Image not found")
-    
+
     return FileResponse(IMAGE_PATH)
