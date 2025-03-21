@@ -43,22 +43,6 @@ except gspread.exceptions.SpreadsheetNotFound:
 except gspread.exceptions.WorksheetNotFound:
     raise ValueError(f"Worksheet '{WORKSHEET_NAME}' not found.")
 
-app = FastAPI()
-
-# Set up logging directory
-LOG_DIR = "/opt/render/logs"
-LOG_FILE = os.path.join(LOG_DIR, "impressions.log")
-os.makedirs(LOG_DIR, exist_ok=True)
-
-# Configure logging
-logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s - IP: %(message)s")
-
-# Load Google Sheets credentials from environment variables
-SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_CREDENTIALS")
-if not SERVICE_ACCOUNT_JSON:
-    raise ValueError("GOOGLE_CREDENTIALS is not set in the environment.")
-
-
 # Function to get geolocation from IP
 def get_geolocation(ip):
     try:
